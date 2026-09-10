@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>PaperLens 设置</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+<div class="wrap">
+  <h1>PaperLens 设置</h1>
+  <p class="lead">一个把 PDF 论文「翻译 + 拆解」的 Chrome 插件。所有 API Key 只保存在本机浏览器，不会上传到任何第三方服务器。</p>
+
+  <div id="welcome" class="card tip" hidden>
+    <b>欢迎使用！</b> 三步开始：① 选择模型服务并填入 API Key；② 保存；③ 打开任意 PDF 论文，点右上角「翻译全文」或「解读」。
+  </div>
+
+  <section class="card">
+    <h2>模型服务</h2>
+    <div class="row">
+      <label for="provider">服务商</label>
+      <select id="provider"></select>
+      <span class="hint">除 Anthropic / Gemini 外均按 OpenAI 兼容协议调用，可填任意兼容网关。</span>
+    </div>
+    <div class="row">
+      <label for="baseUrl">Base URL</label>
+      <input id="baseUrl" placeholder="https://api.deepseek.com/v1" spellcheck="false">
+      <span class="hint">OpenAI 兼容服务请填到 <code>/v1</code> 为止。</span>
+    </div>
+    <div class="row">
+      <label for="apiKey">API Key</label>
+      <input id="apiKey" type="password" placeholder="sk-..." spellcheck="false" autocomplete="off">
+      <button id="toggle-key" class="mini">显示</button>
+    </div>
+    <div class="row">
+      <label for="model">翻译模型</label>
+      <input id="model" placeholder="deepseek-chat" spellcheck="false">
+      <span class="hint">翻译量大，建议用便宜快速的模型。</span>
+    </div>
+    <div class="row">
+      <label for="analysisModel">解读/问答模型</label>
+      <input id="analysisModel" placeholder="留空则与翻译模型相同" spellcheck="false">
+      <span class="hint">解读更吃推理能力，可换成更强的模型。</span>
+    </div>
+    <div class="row">
+      <label></label>
+      <button id="btn-test" class="primary">测试连接</button>
+      <span id="test-result" class="hint"></span>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>翻译</h2>
+    <div class="row">
+      <label for="targetLang">目标语言</label>
+      <input id="targetLang" placeholder="简体中文">
+    </div>
+    <div class="row">
+      <label for="concurrency">并发请求数</label>
+      <input id="concurrency" type="number" min="1" max="12" step="1">
+      <span class="hint">被限流（429）时调小，一般 3–6。</span>
+    </div>
+    <div class="row">
+      <label for="batchChars">每批字符数</label>
+      <input id="batchChars" type="number" min="500" max="8000" step="100">
+      <span class="hint">越大越省钱，但太大容易丢段，推荐 1800–3000。</span>
+    </div>
+    <div class="row">
+      <label for="fontFamily">译文字体</label>
+      <input id="fontFamily" placeholder="留空 = 自动（衬线正文用宋体，其余用黑体）">
+    </div>
+    <div class="row">
+      <label>选项</label>
+      <div class="checks">
+        <label><input type="checkbox" id="autoOpenPdf"> 自动接管浏览器中打开的 PDF 链接</label>
+        <label><input type="checkbox" id="autoTranslate"> 打开论文后自动开始翻译</label>
+        <label><input type="checkbox" id="translateRefs"> 翻译参考文献（默认跳过，省 token）</label>
+        <label><input type="checkbox" id="cacheEnabled"> 缓存译文（同一段落不重复付费）</label>
+      </div>
+    </div>
+    <div class="row">
+      <label for="glossary">术语表</label>
+      <textarea id="glossary" rows="4" placeholder="每行一条，格式：英文=中文&#10;例如：&#10;attention=注意力&#10;transformer=Transformer"></textarea>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>解读与问答</h2>
+    <div class="row">
+      <label for="maxContextChars">上下文上限（字符）</label>
+      <input id="maxContextChars" type="number" min="8000" max="800000" step="1000">
+      <span class="hint">超过此长度时自动改为「分段提要点 → 汇总」，并在问答时按相关度挑选段落。</span>
+    </div>
+    <div class="row">
+      <label for="customPrompt">附加翻译要求</label>
+      <textarea id="customPrompt" rows="2" placeholder="例如：保留英文专有名词首次出现时的原文"></textarea>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>数据</h2>
+    <div class="row">
+      <label>本地缓存</label>
+      <span id="cache-info" class="hint">统计中…</span>
+      <button id="btn-clear-cache">清空缓存</button>
+    </div>
+  </section>
+
+  <div class="bar">
+    <button id="btn-save" class="primary">保存设置</button>
+    <span id="save-result" class="hint"></span>
+  </div>
+
+  <footer>
+    <p class="hint">快捷键：T 翻译 · S 解读面板 · ←/→ 翻页 · +/− 缩放 · 按住 Alt 临时查看原文 · Ctrl+滚轮 缩放</p>
+    <p class="hint">PDF 渲染基于 <a href="https://mozilla.github.io/pdf.js/" target="_blank" rel="noreferrer">pdf.js</a>（Apache-2.0）。</p>
+  </footer>
+</div>
+<script type="module" src="options.js"></script>
+</body>
+</html>

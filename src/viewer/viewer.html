@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PaperLens</title>
+  <link rel="stylesheet" href="viewer.css">
+</head>
+<body>
+  <div id="app">
+    <header id="toolbar">
+      <div class="tb-group tb-left">
+        <span class="brand" title="PaperLens">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 2h8l4 4v16H6z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M14 2v4h4" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="11" cy="13" r="3.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M13.4 15.4 16 18" stroke="currentColor" stroke-width="1.6" fill="none"/></svg>
+        </span>
+        <button id="btn-open" class="tb-btn" title="打开本地 PDF (O)">打开</button>
+        <span id="doc-title" class="doc-title" title=""></span>
+      </div>
+
+      <div class="tb-group tb-center">
+        <button id="btn-prev" class="tb-icon" title="上一页 (←)">‹</button>
+        <input id="page-num" class="page-num" value="1" inputmode="numeric" aria-label="页码">
+        <span class="page-total">/ <span id="page-count">–</span></span>
+        <button id="btn-next" class="tb-icon" title="下一页 (→)">›</button>
+        <span class="sep"></span>
+        <button id="btn-zoom-out" class="tb-icon" title="缩小 (-)">−</button>
+        <select id="zoom-select" class="zoom-select" aria-label="缩放">
+          <option value="page-width">适合宽度</option>
+          <option value="page-fit">适合页面</option>
+          <option value="0.5">50%</option>
+          <option value="0.75">75%</option>
+          <option value="1">100%</option>
+          <option value="1.25">125%</option>
+          <option value="1.5">150%</option>
+          <option value="2">200%</option>
+        </select>
+        <button id="btn-zoom-in" class="tb-icon" title="放大 (+)">+</button>
+      </div>
+
+      <div class="tb-group tb-right">
+        <button id="btn-translate" class="tb-btn tb-primary" title="翻译全文 (T)">
+          <span id="tr-label">翻译全文</span>
+        </button>
+        <button id="btn-toggle-tr" class="tb-btn" title="显示原文 / 译文（按住 Alt 可临时查看原文）">原文</button>
+        <span class="sep"></span>
+        <button id="btn-sidebar" class="tb-btn" title="解读面板 (S)">解读</button>
+        <button id="btn-settings" class="tb-icon" title="设置">⚙</button>
+      </div>
+      <div id="progress" class="progress" hidden><div id="progress-bar"></div></div>
+    </header>
+
+    <main id="main">
+      <div id="viewer-wrap">
+        <div id="pages" tabindex="0"></div>
+        <div id="drop-hint" class="drop-hint" hidden>
+          <div class="drop-card">
+            <h2>PaperLens</h2>
+            <p>把 PDF 论文拖到这里，或点击「打开」选择文件。</p>
+            <p class="muted">也可以直接在浏览器里打开任意 PDF 链接，插件会自动接管。</p>
+            <button id="btn-open2" class="tb-btn tb-primary">选择 PDF 文件</button>
+          </div>
+        </div>
+        <div id="loading" class="loading" hidden><div class="spinner"></div><span id="loading-text">正在加载…</span></div>
+      </div>
+
+      <aside id="sidebar" class="hidden">
+        <div class="sb-tabs">
+          <button class="sb-tab active" data-tab="analysis">论文解读</button>
+          <button class="sb-tab" data-tab="chat">提问</button>
+          <button class="sb-tab" data-tab="outline">大纲</button>
+        </div>
+
+        <section class="sb-panel active" data-panel="analysis">
+          <div class="sb-actions">
+            <button id="btn-analyze" class="tb-btn tb-primary">生成解读</button>
+            <button id="btn-analyze-refresh" class="tb-btn" title="忽略缓存重新生成">重新生成</button>
+            <button id="btn-copy-analysis" class="tb-btn" title="复制 Markdown">复制</button>
+            <button id="btn-export-analysis" class="tb-btn" title="导出 Markdown 文件">导出</button>
+          </div>
+          <div id="analysis-status" class="status"></div>
+          <nav id="analysis-nav" class="chips"></nav>
+          <div id="analysis-body" class="md-body">
+            <p class="muted">点击「生成解读」，将自动提取全文并总结：创新点、技术核心方案、实验指标、优缺点、改进方案与复现要点。</p>
+          </div>
+        </section>
+
+        <section class="sb-panel" data-panel="chat">
+          <div id="chat-list" class="chat-list">
+            <div class="chat-empty muted">
+              <p>针对这篇论文提问，例如：</p>
+              <div class="chips" id="chat-suggest">
+                <button class="chip">这篇论文最核心的创新是什么？</button>
+                <button class="chip">方法部分的公式是怎么推出来的？</button>
+                <button class="chip">实验是否公平？基线选得够强吗？</button>
+                <button class="chip">如果我要复现，需要注意什么？</button>
+                <button class="chip">和 XXX 方法相比有什么区别？</button>
+              </div>
+            </div>
+          </div>
+          <div class="chat-input">
+            <div id="chat-quote" class="quote" hidden></div>
+            <textarea id="chat-text" rows="2" placeholder="就这篇论文提问，Enter 发送 / Shift+Enter 换行"></textarea>
+            <div class="chat-bar">
+              <label class="mini"><input type="checkbox" id="chat-fulltext" checked> 携带全文</label>
+              <button id="btn-chat-stop" class="tb-btn" hidden>停止</button>
+              <button id="btn-chat-send" class="tb-btn tb-primary">发送</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="sb-panel" data-panel="outline">
+          <div id="outline-body" class="outline"><p class="muted">加载中…</p></div>
+        </section>
+      </aside>
+    </main>
+
+    <div id="sel-pop" class="sel-pop" hidden>
+      <button data-act="translate">翻译</button>
+      <button data-act="explain">解释</button>
+      <button data-act="ask">提问</button>
+      <button data-act="copy">复制</button>
+    </div>
+
+    <div id="toast" class="toast" hidden></div>
+    <input id="file-input" type="file" accept="application/pdf,.pdf" hidden>
+  </div>
+
+  <script type="module" src="viewer.js"></script>
+</body>
+</html>

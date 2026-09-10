@@ -1,0 +1,24 @@
+# 依赖与构建产物
+node_modules/
+dist/
+*.tgz
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 日志与临时文件
+*.log
+*.tmp
+tmp/
+scratch/
+
+# 打包扩展时产生的文件
+*.crx
+*.pem
+*.zip
+
+# 注意：vendor/pdfjs 必须提交，否则扩展无法「加载已解压」直接运行

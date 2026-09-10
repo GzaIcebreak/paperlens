@@ -1,0 +1,9 @@
+# 仓库内统一用 LF 存储，检出时由各平台自行处理
+* text=auto eol=lf
+
+# 二进制资源不要做任何换行转换
+*.png binary
+*.bcmap binary
+*.pfb binary
+*.ttf binary
+*.pdf binary
