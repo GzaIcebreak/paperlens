@@ -31,15 +31,26 @@ function headers(settings) {
   return h;
 }
 
+/* 有些「始终推理」的模型（如 kimi-k3、o 系列）只接受 temperature=1，
+ * 传别的值会直接 400。撞到一次就记下来，之后对该模型不再发这个参数。 */
+const noCustomTemp = new Set();
+
+export function rejectsCustomTemperature(msg) {
+  const m = String(msg || '').toLowerCase();
+  return m.includes('temperature') &&
+    /only 1|must be 1|unsupported|not support|does not support|invalid/.test(m);
+}
+
 function body(settings, { system, messages, stream, maxTokens, temperature, model }) {
   const flavor = apiFlavor(settings.provider);
   const mdl = model || settings.model;
+  const dropTemp = noCustomTemp.has(mdl);
   const temp = temperature === undefined ? Number(settings.temperature ?? 0.2) : temperature;
   if (flavor === 'anthropic') {
     return {
       model: mdl,
       max_tokens: maxTokens || 8192,
-      temperature: temp,
+      temperature: dropTemp ? undefined : temp,
       system: system || undefined,
       messages: messages.map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content })),
       stream: !!stream
@@ -52,13 +63,45 @@ function body(settings, { system, messages, stream, maxTokens, temperature, mode
         role: m.role === 'assistant' ? 'model' : 'user',
         parts: [{ text: m.content }]
       })),
-      generationConfig: { temperature: temp, maxOutputTokens: maxTokens || 8192 }
+      generationConfig: dropTemp
+        ? { maxOutputTokens: maxTokens || 8192 }
+        : { temperature: temp, maxOutputTokens: maxTokens || 8192 }
     };
   }
   const msgs = [];
   if (system) msgs.push({ role: 'system', content: system });
   for (const m of messages) msgs.push(m);
-  return { model: mdl, messages: msgs, temperature: temp, stream: !!stream, max_tokens: maxTokens || undefined };
+  return {
+    model: mdl,
+    messages: msgs,
+    temperature: dropTemp ? undefined : temp,
+    stream: !!stream,
+    max_tokens: maxTokens || undefined
+  };
+}
+
+/** 发请求；若因 temperature 被拒，就记下该模型并去掉参数重试一次 */
+async function post(settings, opts, streamMode) {
+  const send = () => fetch(endpoint(settings, streamMode), {
+    method: 'POST',
+    headers: headers(settings),
+    body: JSON.stringify(body(settings, Object.assign({}, opts, { stream: streamMode }))),
+    signal: opts.signal
+  });
+
+  let res = await send();
+  if (!res.ok) {
+    const err = await readError(res);
+    const mdl = opts.model || settings.model;
+    if (res.status === 400 && !noCustomTemp.has(mdl) && rejectsCustomTemperature(err.message)) {
+      noCustomTemp.add(mdl);
+      res = await send();
+      if (!res.ok) throw await readError(res);
+      return res;
+    }
+    throw err;
+  }
+  return res;
 }
 
 async function readError(res) {
@@ -104,13 +147,7 @@ function pickText(flavor, json) {
 /** 非流式调用，返回字符串 */
 export async function complete(settings, opts) {
   const flavor = apiFlavor(settings.provider);
-  const res = await fetch(endpoint(settings, false), {
-    method: 'POST',
-    headers: headers(settings),
-    body: JSON.stringify(body(settings, { ...opts, stream: false })),
-    signal: opts.signal
-  });
-  if (!res.ok) throw await readError(res);
+  const res = await post(settings, opts, false);
   const json = await res.json();
   const text = pickText(flavor, json);
   if (!text) throw new Error('模型返回为空：' + JSON.stringify(json).slice(0, 200));
@@ -120,13 +157,7 @@ export async function complete(settings, opts) {
 /** 流式调用，onDelta(chunk) 增量回调，返回完整文本 */
 export async function stream(settings, opts) {
   const flavor = apiFlavor(settings.provider);
-  const res = await fetch(endpoint(settings, true), {
-    method: 'POST',
-    headers: headers(settings),
-    body: JSON.stringify(body(settings, { ...opts, stream: true })),
-    signal: opts.signal
-  });
-  if (!res.ok) throw await readError(res);
+  const res = await post(settings, opts, true);
   if (!res.body) return complete(settings, opts);
 
   const reader = res.body.getReader();
