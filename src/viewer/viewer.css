@@ -222,6 +222,29 @@ body {
 .md-body th { background: var(--panel-2); white-space: nowrap; }
 .md-body hr { border: none; border-top: 1px solid var(--line); margin: 14px 0; }
 
+/* 公式：块级公式独占一行并可横向滚动，长推导不会撑破侧栏 */
+.pl-math[data-display="1"] {
+  display: block;
+  margin: 12px 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 2px 0 6px;
+  text-align: center;
+}
+.pl-math[data-display="0"] { display: inline-block; max-width: 100%; }
+/* KaTeX 加载完成前 / 失败时保留原始 LaTeX，标记出来避免被误读成正文 */
+.pl-math:not([data-done]) {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px;
+  color: var(--muted);
+  background: var(--panel-2);
+  border-radius: 4px;
+  padding: 0 3px;
+}
+.pl-math[data-done="err"] { color: #d24; }
+.md-body .katex { font-size: 1.04em; }
+.md-body .katex-display { margin: 0; }
+
 /* 对话 */
 .chat-list { flex: 1 1 auto; overflow: auto; padding: 10px 12px; }
 .chat-empty p { margin: 4px 0 8px; }

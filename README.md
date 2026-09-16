@@ -29,6 +29,8 @@
 
 长论文自动走「分段提要点 → 汇总」，不会因为超上下文而截断。结果可复制或导出 Markdown，并按缓存保存。
 
+输出按 Markdown 渲染（标题、列表、表格、代码块），**LaTeX 公式用 KaTeX 排版**：`$$...$$` 与 `\[...\]` 渲染为独立公式块（过长可横向滚动），`$...$` 与 `\(...\)` 渲染为行内公式。代码块里的 `$` 和正文里的 `$100` 不会被误判成公式。KaTeX 按需加载，不出现公式时不会拖慢启动。
+
 ### 3. 针对论文提问
 
 - 侧栏对话，流式输出，携带全文上下文；论文超长时按与问题的相关度挑选段落。
@@ -114,10 +116,12 @@ src/
     viewer.html/css/js 阅读器主程序：渲染、缩放、导航、翻译调度、选中操作
     overlay.js         译文覆盖层：背景采样、字号自适配、原位回填
     sidebar.js         解读 / 提问 / 大纲
+    math.js            按需加载 KaTeX，排版解读与问答里的 LaTeX 公式
   pages/               设置页、弹出面板
 vendor/pdfjs/          pdf.js 4.10.38（Apache-2.0）
+vendor/katex/          KaTeX 0.18.7（MIT，仅保留 woff2 字体）
 ```
 
 ## 致谢
 
-PDF 渲染基于 [pdf.js](https://mozilla.github.io/pdf.js/)（Apache License 2.0），随扩展一起分发于 `vendor/pdfjs/`。
+PDF 渲染基于 [pdf.js](https://mozilla.github.io/pdf.js/)（Apache License 2.0），公式排版基于 [KaTeX](https://katex.org/)（MIT），二者均随扩展分发于 `vendor/` 下。

@@ -25,6 +25,7 @@ const state = {
   title: '',
   fileName: '',
   showTranslation: true,
+  docOpen: false,
   translating: false,
   abort: null,
   translations: new Map(),   // blockId -> 译文
@@ -76,10 +77,19 @@ async function loadFromUrl(url) {
     withCredentials: true,
     cMapUrl: CMAP_URL, cMapPacked: true,
     standardFontDataUrl: FONT_URL,
-    enableXfa: true
+    enableXfa: true,
+    rangeChunkSize: 262144   // 默认 64KB，高延迟网络下请求数太多
   });
+  const t0 = Date.now();
   task.onProgress = (d) => {
-    if (d.total) setLoading(true, '正在下载 PDF… ' + Math.round(d.loaded / d.total * 100) + '%');
+    // 文档打开后 pdf.js 仍会在后台继续抓剩余分片，这里必须闸住，
+    // 否则回调会把已经关掉的加载框重新打开，一直挂着「正在下载 PDF」。
+    if (state.docOpen) return;
+    const kb = Math.round((d.loaded || 0) / 1024);
+    const sec = Math.round((Date.now() - t0) / 1000);
+    setLoading(true, d.total
+      ? '正在下载 PDF… ' + Math.round(d.loaded / d.total * 100) + '%（' + kb + ' KB）'
+      : '正在下载 PDF… 已接收 ' + kb + ' KB' + (sec > 3 ? '，' + sec + ' 秒' : ''));
   };
   await openDoc(await task.promise, url);
 }
@@ -101,6 +111,7 @@ async function loadFromFile(file) {
 
 async function openDoc(pdf, idSeed) {
   state.pdf = pdf;
+  state.docOpen = true;
   state.numPages = pdf.numPages;
   state.docId = 'doc:' + hashStr(idSeed + ':' + pdf.numPages);
   $('page-count').textContent = String(pdf.numPages);
@@ -137,8 +148,21 @@ async function buildPageShells() {
   const cont = $('pages');
   cont.innerHTML = '';
   state.pages = [];
+
+  // 并行取页对象：逐页 await 在高延迟网络上会把首屏拖得很慢
+  const handles = [];
+  const BATCH = 16;
+  for (let start = 1; start <= state.numPages; start += BATCH) {
+    const end = Math.min(state.numPages, start + BATCH - 1);
+    const jobs = [];
+    for (let i = start; i <= end; i++) jobs.push(state.pdf.getPage(i));
+    const got = await Promise.all(jobs);
+    handles.push.apply(handles, got);
+    if (state.numPages > BATCH) setLoading(true, '正在解析页面 ' + end + '/' + state.numPages + '…');
+  }
+
   for (let i = 1; i <= state.numPages; i++) {
-    const page = await state.pdf.getPage(i);
+    const page = handles[i - 1];
     const vp1 = page.getViewport({ scale: 1 });
     const div = document.createElement('div');
     div.className = 'page';

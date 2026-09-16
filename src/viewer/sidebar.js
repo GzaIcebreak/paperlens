@@ -1,6 +1,7 @@
 /* 侧栏：论文解读 / 提问 / 大纲 */
 
 import { renderMarkdown } from '../lib/md.js';
+import { typesetMath } from './math.js';
 import { stream as llmStream, complete as llmComplete } from '../lib/llm.js';
 import { docGet, docSet } from '../lib/store.js';
 import {
@@ -58,8 +59,14 @@ export function initSidebar(api) {
     statusEl().classList.toggle('err', !!err);
   }
 
+  /** 渲染 Markdown 并排版其中的公式 */
+  function setMd(el, text) {
+    el.innerHTML = renderMarkdown(text);
+    typesetMath(el);
+  }
+
   function renderAnalysis() {
-    $('analysis-body').innerHTML = renderMarkdown(S.analysisMd);
+    setMd($('analysis-body'), S.analysisMd);
   }
 
   function buildNav() {
@@ -211,7 +218,7 @@ export function initSidebar(api) {
     const b = document.createElement('div');
     b.className = 'bubble md-body';
     if (role === 'user') b.textContent = content;
-    else b.innerHTML = renderMarkdown(content);
+    else setMd(b, content);
     wrap.appendChild(r); wrap.appendChild(b);
     list.appendChild(wrap);
     list.scrollTop = list.scrollHeight;
@@ -294,17 +301,17 @@ export function initSidebar(api) {
           const now = Date.now();
           if (now - last > 120) {
             last = now;
-            bubble.innerHTML = renderMarkdown(acc);
+            setMd(bubble, acc);
             $('chat-list').scrollTop = $('chat-list').scrollHeight;
           }
         }
       });
-      bubble.innerHTML = renderMarkdown(acc);
+      setMd(bubble, acc);
       S.chat.push({ role: 'user', content: userContent });
       S.chat.push({ role: 'assistant', content: acc });
       if (S.chat.length > 16) S.chat.splice(0, S.chat.length - 16);
     } catch (e) {
-      if (e.name === 'AbortError') bubble.innerHTML = renderMarkdown(acc + '\n\n_（已停止）_');
+      if (e.name === 'AbortError') setMd(bubble, acc + '\n\n_（已停止）_');
       else bubble.innerHTML = '<p class="err">出错了：' + e.message + '</p>';
     } finally {
       S.chatAbort = null;
